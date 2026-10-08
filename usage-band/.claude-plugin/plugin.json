@@ -1,0 +1,6 @@
+{
+  "name": "usage-band",
+  "version": "0.1.0",
+  "description": "Faixa acima do prompt com tokens da rodada, janelas de 5h/semanal, contexto e custo",
+  "types": "./types/index.d.ts"
+}

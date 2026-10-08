@@ -1,2 +1,3 @@
 # tipos que o motor do Claude Code escreve a cada carga do mod
 */.claude-plugin/types/
+__pycache__/
