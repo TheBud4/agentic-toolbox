@@ -44,12 +44,14 @@ seja o `subagent_type` (Explore, general-purpose, feature-dev:*, auditor…).
   docs/superpowers/specs/             specs
   subagent-routing/
     .claude-plugin/plugin.json        name, version, description, "types": "./types/index.d.ts"
-    hooks/hooks.json                  { "modules": ["./register.tsx"] }
-    hooks/register.tsx                ligação dos eventos
+    hooks/hooks.json                  { "modules": ["./register.ts"] }
+    hooks/register.ts                ligação dos eventos
     hooks/tiers.ts                    lógica pura de decisão
     hooks/policy.ts                   texto injetado no system prompt
     hooks/classify.ts                 classificador Haiku
-    hooks/stats.ts                    contagem de delegações
+    hooks/stats.ts                    contagem de delegações e textos de toast/status
+    hooks/tags.ts                     extração das tags do prompt
+    hooks/command.ts                  subcomandos do /route (puro)
     hooks/*.test.ts                   testes
     types/index.d.ts                  contrato de $.state
 ```
@@ -61,8 +63,10 @@ seja o `subagent_type` (Explore, general-purpose, feature-dev:*, auditor…).
 | `tiers.ts`     | Config padrão, merge/validação de config, precedência das fontes, eco/boost, limites fixos, nível → model/effort, model/effort → nível, detecção de edição | nada (puro)         |
 | `policy.ts`    | Gera a seção do system prompt a partir da config                                                                  | `tiers.ts`          |
 | `classify.ts`  | `$.model.complete({ model: "haiku", effort: "low", timeoutMs })` → `leve`/`medio`/`pesado` ou falha                | `$.model`           |
-| `stats.ts`     | Incrementa contadores por nível e por fonte (sessão e acumulado)                                                  | `$.state`, `$.store`|
-| `register.tsx` | Registra hooks e comando; sem lógica própria além de orquestrar                                                    | todos               |
+| `stats.ts`     | Contadores por nível e por fonte, textos de toast/status/estatísticas (puro; `register.ts` grava em `$.state`/`$.store`) | `tiers.ts`          |
+| `tags.ts`      | Extrai e remove `#leve`/`#medio`/`#pesado`/`#max` do texto do prompt                                              | `tiers.ts`          |
+| `command.ts`   | Interpreta os argumentos do `/route` e devolve texto + mudanças de config/modo/stats (puro)                       | `tiers.ts`, `stats.ts` |
+| `register.ts` | Registra hooks e comando; sem lógica própria além de orquestrar                                                    | todos               |
 
 ### Eventos
 
@@ -169,8 +173,9 @@ readOnlyAgents: Explore, Plan, auditor, claude-code-guide,
 classifier: { enabled: true, timeoutMs: 4000, fallback: medio }
 ```
 
-Leitura: o valor salvo é mesclado sobre o padrão; campos inválidos ou ausentes
-usam o padrão e geram um aviso (uma vez por sessão).
+Leitura: o valor salvo é mesclado sobre o padrão. Campos ausentes usam o padrão
+em silêncio (permite acrescentar campos em versões futuras); campos inválidos usam
+o padrão e geram um aviso (uma vez por carga do mod).
 
 Modelos aceitos: `haiku`, `sonnet`, `opus`, `fable`. Efforts aceitos: `low`,
 `medium`, `high`, `xhigh`, `max`.
