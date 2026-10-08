@@ -18,3 +18,21 @@ arquitetura...) fica no mínimo em `pesado`. Forks não são roteados.
 
 ## Instalar
 
+```
+claude plugin marketplace add ~/www/claude-mods
+claude plugin install subagent-routing@claude-mods
+```
+
+## Comandos
+
+`/route` mostra tudo; `/route help` lista os subcomandos (`set`, `keywords`,
+`verbs`, `readonly`, `classifier`, `force`, `eco`, `boost`, `reset`, `stats`,
+`defaults`).
+
+## Desenvolver
+
+```
+claude plugin test subagent-routing
+claude plugin validate subagent-routing
+npx tsc -p subagent-routing
+```
