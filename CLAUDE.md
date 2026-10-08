@@ -21,8 +21,8 @@ npx tsc -p <mod>                # tipos; precisa de <mod>/.claude-plugin/types/
 
 ## Como os mods carregam
 
-- `usage-band` e `cassino`: `~/.claude/settings.json` define `CLAUDE_CODE_PLUGIN_DIRS=~/.claude/mods/usage-band:~/.claude/mods/cassino`, e essas pastas são links simbólicos para este repo. Editar aqui vale em toda sessão nova; uma sessão aberta recarrega sozinha ao salvar.
-- `subagent-routing`: desenvolvido com hot reload por um link em `~/.claude/dev-mods/<sessão>/`. Para valer sempre, entra no mesmo `CLAUDE_CODE_PLUGIN_DIRS` ou é instalado pelo marketplace (`claude plugin install subagent-routing@claude-mods`).
+- `~/.claude/settings.json` define `CLAUDE_CODE_PLUGIN_DIRS=~/.claude/mods/usage-band:~/.claude/mods/cassino:~/.claude/mods/subagent-routing`, e essas pastas são links simbólicos para este repo. Editar aqui vale em toda sessão nova, e uma sessão aberta recarrega sozinha ao salvar. Um mod novo entra criando o link em `~/.claude/mods/` e acrescentando o caminho à variável.
+- Para desenvolver com hot reload numa sessão sem mexer no `settings.json`, também serve um link em `~/.claude/dev-mods/<sessão>/` (o skill `plugin-authoring` explica). Não deixe o mesmo mod nos dois lugares ao mesmo tempo, ou ele carrega duas vezes.
 - Os tipos e a referência da API vêm do skill `plugin-authoring`. Carregue-o antes de mexer em qualquer mod: a API é *early access* e muda entre versões. O arquivo de tipos da versão em uso é a autoridade.
 
 ## Anatomia de um mod
