@@ -97,9 +97,17 @@ export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     if (!PERSON_ORIGINS.has(e.origin.kind) || e.text.trimStart().startsWith('/')) return next(e)
     const { text, tag, count } = extractTag(e.text)
+    if (count === 0) return next(e)
+    // A tag vale até o fim do turno principal (ver turn.complete); digitada no meio
+    // de um turno, entra nele. Prompt sem tag não mexe na tag do turno em curso.
     await update($, turnTagAtom, () => tag)
     if (count > 1) $.ui.toast(`subagent-routing: várias tags; vale #${tag}`)
-    return next(count > 0 ? { ...e, text } : e)
+    return next({ ...e, text })
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId === undefined) await update($, turnTagAtom, () => null)
+    return next(e)
   })
 
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {

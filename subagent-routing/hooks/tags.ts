@@ -1,7 +1,7 @@
 import type { RouteTier } from '../types'
 import { parseTier } from './tiers'
 
-const TAG = /(^|\s)#(leve|medio|médio|pesado|max|maximo|máximo)(?=[\s.,;:!?]|$)/gi
+const TAG = /(?<=^|\s)#(leve|medio|médio|pesado|max|maximo|máximo)(?=[\s.,;:!?]|$)[ \t]*/gi
 
 export type TagResult = { text: string; tag: RouteTier | null; count: number }
 
@@ -9,13 +9,14 @@ export type TagResult = { text: string; tag: RouteTier | null; count: number }
 export function extractTag(text: string): TagResult {
   let tag: RouteTier | null = null
   let count = 0
-  const stripped = text.replace(TAG, (_match: string, lead: string, word: string) => {
+  const stripped = text.replace(TAG, (_match: string, word: string) => {
     count += 1
     tag = parseTier(word)
-    return lead
+    return ''
   })
   if (count === 0) return { text, tag: null, count: 0 }
 
-  const cleaned = stripped.replace(/[ \t]{2,}/g, ' ').trim()
+  // Só o fim é aparado: espaços no meio do texto (indentação de código) ficam intactos.
+  const cleaned = stripped.trimEnd()
   return { text: cleaned === '' ? text : cleaned, tag, count }
 }

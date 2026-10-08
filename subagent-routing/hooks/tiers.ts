@@ -190,9 +190,13 @@ export function shiftTier(tier: RouteTier, mode: 'eco' | 'boost'): RouteTier {
   return tier
 }
 
-export function editsFiles(subagentType: string | undefined, text: string, config: RouteConfig): boolean {
+export function isReadOnlyAgent(subagentType: string | undefined, config: RouteConfig): boolean {
   const type = normalize(subagentType ?? 'general-purpose')
-  if (config.readOnlyAgents.some(agent => normalize(agent) === type)) return false
+  return config.readOnlyAgents.some(agent => normalize(agent) === type)
+}
+
+export function editsFiles(subagentType: string | undefined, text: string, config: RouteConfig): boolean {
+  if (isReadOnlyAgent(subagentType, config)) return false
   return config.writeVerbs.some(verb => containsTerm(text, verb))
 }
 
@@ -255,9 +259,11 @@ export function decide(input: DecideInput, classified: ClassTier | null, config:
     reasons.push('limite: edita arquivos')
     isLimited = true
   }
-  const keyword = RANK[tier] < RANK.pesado ? findHeavyKeyword(text, config) : null
+  // Agente somente leitura só lê: palavra pesada no texto sobe a medio, não a Opus.
+  const keywordFloor: RouteTier = isReadOnlyAgent(input.subagentType, config) ? 'medio' : 'pesado'
+  const keyword = RANK[tier] < RANK[keywordFloor] ? findHeavyKeyword(text, config) : null
   if (keyword !== null) {
-    tier = 'pesado'
+    tier = keywordFloor
     reasons.push(`limite: "${keyword}"`)
     isLimited = true
   }

@@ -30,3 +30,9 @@ test('texto parecido com tag não é tag', () => {
 test('tag em linha própria', () => {
   expect(extractTag('linha 1\n#pesado\nlinha 3')).toEqual({ text: 'linha 1\n\nlinha 3', tag: 'pesado', count: 1 })
 })
+
+test('tag não destrói a indentação do resto do prompt', () => {
+  const code = 'conserta:\n```py\ndef f():\n    if x:\n        return 1\n```'
+  expect(extractTag(`#pesado ${code}`)).toEqual({ text: code, tag: 'pesado', count: 1 })
+  expect(extractTag(`${code}\n#max`).text).toBe(code)
+})

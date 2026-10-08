@@ -103,7 +103,9 @@ Entrada: o evento `tool.call` da ferramenta `Agent` (`e.subagent_type`,
      descrição contém um verbo de escrita (match por palavra, sem
      maiúsculas/acentos). Tipo desconhecido segue a regra dos verbos.
    - **palavra pesada ⇒ mínimo `pesado`** (match por palavra/expressão no prompt
-     e na descrição).
+     e na descrição). Para agentes somente leitura o mínimo é `medio`: eles só
+     leem, e o texto de uma busca menciona "migration" ou "debug" sem que a
+     busca seja difícil (ajuste da revisão final).
    - Limites só elevam; nunca rebaixam (não afetam `maximo`).
 4. **Aplicar** — `next({ ...e, model, effort })` com os valores da config para o
    nível final.
@@ -215,7 +217,11 @@ sessões futuras sem o usuário perceber.
 `#leve`, `#medio` (também `#médio`), `#pesado`, `#max` (também `#maximo`).
 Reconhecidas como palavra isolada, removidas do texto antes de chegar ao modelo.
 Várias tags: vale a última, com toast de aviso. A tag vale para todas as
-delegações do turno e é limpa no próximo `prompt.submit`.
+delegações do turno e é limpa quando o turno principal termina
+(`turn.complete` sem `agentId`). Só prompts da pessoa (origem `composer`,
+`bridge` ou `sdk`, sem `/` no início) definem tag; um prompt sem tag não mexe na
+tag do turno em curso, e uma tag digitada no meio de um turno entra nele.
+Remover a tag não altera o resto do texto (indentação de código preservada).
 
 ## Erros
 

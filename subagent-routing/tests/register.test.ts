@@ -32,6 +32,10 @@ function classifierSays(on: On, text: string) {
   on('model.complete', () => ({ value: { isAnswered: true as const, text, usage: USAGE } }))
 }
 
+function turnEnd(fields: Record<string, unknown>) {
+  return { answer: '', durationMs: 1, isAborted: false, turnId: 'turn-1', reason: 'answer', ...fields } as never
+}
+
 function routeCommand(args: string) {
   return { command: 'route', args, origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 120 } } as never
 }
@@ -112,13 +116,62 @@ describe('prompt.submit', () => {
     expect(seen[0]).toMatchObject({ model: 'opus', effort: 'high' })
   })
 
-  test('próximo prompt sem tag limpa a tag', async ($, on) => {
+  test('o fim do turno principal limpa a tag', async ($, on) => {
+    mock.store(on)
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+    on('turn.complete', () => ({ text: '' }))
+    const seen = captureAgent(on)
+    await $.prompt.submit({ text: 'a #pesado', origin: { kind: 'composer' }, wait: false } as never)
+    await $.turn.complete(turnEnd({}))
+    await $.prompt.submit({ text: 'b', origin: { kind: 'composer' }, wait: false } as never)
+    await $.tool.call(agent({ subagent_type: 'Explore', model: 'haiku' }))
+    expect(seen[0]).toMatchObject({ model: 'haiku' })
+  })
+
+  test('tag não vaza para um turno seguinte que a pessoa não digitou', async ($, on) => {
+    mock.store(on)
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+    on('turn.complete', () => ({ text: '' }))
+    const seen = captureAgent(on)
+    await $.prompt.submit({ text: 'resume isso #leve', origin: { kind: 'composer' }, wait: false } as never)
+    await $.turn.complete(turnEnd({}))
+    await $.prompt.submit({ text: 'agente terminou', origin: { kind: 'task-notification' }, wait: false } as never)
+    await $.tool.call(agent({ model: 'haiku', prompt: 'corrigir o deadlock no worker' }))
+    expect(seen[0]).toMatchObject({ model: 'opus', effort: 'high' })
+  })
+
+  test('o fim do turno de um subagente não limpa a tag', async ($, on) => {
+    mock.store(on)
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+    on('turn.complete', () => ({ text: '' }))
+    const seen = captureAgent(on)
+    await $.prompt.submit({ text: 'a #pesado', origin: { kind: 'composer' }, wait: false } as never)
+    await $.turn.complete(turnEnd({ agentId: 'sub-1' }))
+    await $.tool.call(agent({ subagent_type: 'Explore', model: 'haiku' }))
+    expect(seen[0]).toMatchObject({ model: 'opus' })
+  })
+
+  test('prompt sem tag digitado no meio do turno não limpa a tag', async ($, on) => {
     mock.store(on)
     on('prompt.submit', ($, e) => ({ text: e.text }))
     const seen = captureAgent(on)
     await $.prompt.submit({ text: 'a #pesado', origin: { kind: 'composer' }, wait: false } as never)
-    await $.prompt.submit({ text: 'b', origin: { kind: 'composer' }, wait: false } as never)
+    await $.prompt.submit({ text: 'e mais isso', origin: { kind: 'composer' }, wait: false, turnId: 't1' } as never)
     await $.tool.call(agent({ subagent_type: 'Explore', model: 'haiku' }))
+    expect(seen[0]).toMatchObject({ model: 'opus' })
+  })
+
+  test('origem que não é a pessoa não define nem remove tag', async ($, on) => {
+    mock.store(on)
+    let submitted = ''
+    on('prompt.submit', ($, e) => {
+      submitted = e.text
+      return { text: e.text }
+    })
+    const seen = captureAgent(on)
+    await $.prompt.submit({ text: 'agente terminou #max', origin: { kind: 'task-notification' }, wait: false } as never)
+    await $.tool.call(agent({ subagent_type: 'Explore', model: 'haiku' }))
+    expect(submitted).toBe('agente terminou #max')
     expect(seen[0]).toMatchObject({ model: 'haiku' })
   })
 })

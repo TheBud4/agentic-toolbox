@@ -14,7 +14,9 @@ Ordem de decisão: tag no prompt (`#leve`, `#medio`, `#pesado`, `#max`), depois
 `/route force`, depois a escolha do Sonnet, depois o classificador Haiku.
 Fora a tag e o force, valem `/route eco|boost` e os limites fixos: tarefa que
 edita arquivos fica no mínimo em `medio`; palavra pesada (deadlock, segurança,
-arquitetura...) fica no mínimo em `pesado`. Forks não são roteados.
+arquitetura...) fica no mínimo em `pesado` (em agentes somente leitura, como
+`Explore`, no mínimo em `medio`). Uma tag vale só até o fim do turno. Forks não
+são roteados.
 
 ## Instalar
 
@@ -34,5 +36,5 @@ claude plugin install subagent-routing@claude-mods
 ```
 claude plugin test subagent-routing
 claude plugin validate subagent-routing
-npx tsc -p subagent-routing
+npx tsc -p subagent-routing   # precisa de .claude-plugin/types/, que o Claude Code escreve ao carregar o mod
 ```

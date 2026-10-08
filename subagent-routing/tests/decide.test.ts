@@ -157,6 +157,14 @@ describe('decide: eco, boost e limites', () => {
     expect(route({ turnTag: 'leve', prompt: 'corrigir o deadlock' })).toMatchObject({ tier: 'leve', isLimited: false })
   })
 
+  test('palavra pesada em agente somente leitura sobe no máximo a medio', () => {
+    expect(route({ subagentType: 'Explore', model: 'haiku', prompt: 'Find where the migration files live' })).toEqual({
+      kind: 'route', tier: 'medio', target: { model: 'sonnet', effort: 'high' },
+      source: 'sonnet', reasons: ['sonnet', 'limite: "migration"'], isLimited: true,
+    })
+    expect(route({ subagentType: 'Explore', model: 'opus', prompt: 'explain the architecture' })).toMatchObject({ tier: 'pesado', isLimited: false })
+  })
+
   test('agente somente leitura não conta como edição', () => {
     expect(route({ subagentType: 'Explore', model: 'haiku', prompt: 'descobrir como corrigir o bug' })).toMatchObject({ tier: 'leve' })
   })
