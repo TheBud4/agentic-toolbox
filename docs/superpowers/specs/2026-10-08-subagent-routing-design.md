@@ -90,7 +90,8 @@ Entrada: o evento `tool.call` da ferramenta `Agent` (`e.subagent_type`,
    2. modo `force:<nível>` da sessão → **final**, pula 2 e 3;
    3. escolha do Sonnet, lida de `e.model`/`e.effort`:
       `haiku`→leve, `sonnet`→medio, `opus` com effort `max`/`xhigh`→maximo,
-      outro `opus`→pesado. Qualquer outro modelo (ex.: `fable`) → **fora da
+      outro `opus`→pesado; sem `model` mas com effort `max`/`xhigh`→maximo
+      (pedido explícito de esforço máximo). Qualquer outro modelo (ex.: `fable`) → **fora da
       tabela**: a chamada passa como o Sonnet pediu, sem 2 e 3, contada como
       "fora da tabela";
    4. classificador Haiku (só quando `e.model` está ausente).

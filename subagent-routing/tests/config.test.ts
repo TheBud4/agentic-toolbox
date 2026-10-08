@@ -20,6 +20,8 @@ describe('normalize e containsTerm', () => {
     expect(containsTerm('há uma race condition aqui', 'race condition')).toBe(true)
     expect(containsTerm('revisar a segurança do login', 'segurança')).toBe(true)
     expect(containsTerm('qualquer coisa', '   ')).toBe(false)
+    expect(containsTerm('ler update_user em fix_tests.py', 'update')).toBe(false)
+    expect(containsTerm('ler update_user em fix_tests.py', 'fix')).toBe(false)
   })
 })
 
@@ -65,6 +67,12 @@ describe('mergeConfig', () => {
     expect(config.heavyKeywords).toEqual(DEFAULT_CONFIG.heavyKeywords)
     expect(config.classifier.timeoutMs).toBe(4000)
     expect(isRepaired).toBe(true)
+  })
+
+  test('timeoutMs precisa ser inteiro e caber num timer', () => {
+    expect(mergeConfig({ classifier: { timeoutMs: 1500.5 } })).toMatchObject({ isRepaired: true, config: { classifier: { timeoutMs: 4000 } } })
+    expect(mergeConfig({ classifier: { timeoutMs: 2147483648 } })).toMatchObject({ isRepaired: true, config: { classifier: { timeoutMs: 4000 } } })
+    expect(mergeConfig({ classifier: { timeoutMs: 2500 } })).toMatchObject({ isRepaired: false, config: { classifier: { timeoutMs: 2500 } } })
   })
 
   test('valor que nem é objeto: padrão e avisa', () => {

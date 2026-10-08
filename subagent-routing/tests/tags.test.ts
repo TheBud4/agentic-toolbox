@@ -14,8 +14,9 @@ test('várias tags: vale a última', () => {
   expect(extractTag('#leve olha #max isso')).toEqual({ text: 'olha isso', tag: 'maximo', count: 2 })
 })
 
-test('pontuação logo depois ainda é tag', () => {
-  expect(extractTag('veja isso #max.').tag).toBe('maximo')
+test('pontuação logo depois ainda é tag e não sobra espaço solto', () => {
+  expect(extractTag('veja isso #max.')).toEqual({ text: 'veja isso.', tag: 'maximo', count: 1 })
+  expect(extractTag('#leve, olha isso')).toEqual({ text: ', olha isso', tag: 'leve', count: 1 })
 })
 
 test('prompt que é só a tag mantém o texto original', () => {

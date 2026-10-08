@@ -46,6 +46,7 @@ async function classify($: EngineInterface, input: TaskText, config: RouteConfig
       system: CLASSIFIER_SYSTEM,
       prompt: buildClassifierPrompt(input),
       effort: 'low',
+      maxTokens: 256,
       timeoutMs: config.classifier.timeoutMs,
     })
     return reply.isAnswered ? parseClassification(reply.text) : null
@@ -65,11 +66,13 @@ function bumpTotal($: EngineInterface, decision: RouteDecision): Promise<void> {
 }
 
 async function report($: EngineInterface, decision: RouteDecision, description: string, askedEffort: string | undefined) {
+  // Os textos primeiro: se montá-los falhar, nada foi contado.
+  const toast = toastText(decision, description)
   const last = lastRouteOf(decision, description, askedEffort)
   await update($, lastRouteAtom, () => last)
   await update($, sessionStatsAtom, stats => addToStats(stats, decision))
   await bumpTotal($, decision)
-  $.ui.toast(toastText(decision, description))
+  $.ui.toast(toast)
   $.ui.status(statusText(await read($, modeAtom), last))
 }
 
@@ -123,7 +126,11 @@ export const register: Register = on => {
     }
     const classified = needsClassifier(input, config) ? await classify($, input, config) : null
     const decision = decide(input, classified, config)
-    await report($, decision, e.description, e.effort)
+    try {
+      await report($, decision, e.description, e.effort)
+    } catch {
+      // o aviso e as estatísticas são cortesia; a rota decidida vale de qualquer jeito
+    }
     return next(
       decision.kind === 'route' ? { ...e, model: decision.target.model, effort: decision.target.effort } : e,
     )

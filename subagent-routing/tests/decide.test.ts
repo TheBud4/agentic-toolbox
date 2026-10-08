@@ -39,6 +39,14 @@ describe('tierFromChoice', () => {
     expect(tierFromChoice('HAIKU', undefined, DEFAULT_CONFIG)).toBe('leve')
   })
 
+  test('effort max/xhigh sem model é pedido de maximo', () => {
+    expect(tierFromChoice(undefined, 'max', DEFAULT_CONFIG)).toBe('maximo')
+    expect(tierFromChoice(undefined, 'XHIGH', DEFAULT_CONFIG)).toBe('maximo')
+    expect(tierFromChoice(undefined, 'medium', DEFAULT_CONFIG)).toBe(null)
+    expect(needsClassifier({ ...BASE, effort: 'max' }, DEFAULT_CONFIG)).toBe(false)
+    expect(route({ effort: 'max' })).toMatchObject({ tier: 'maximo', source: 'sonnet' })
+  })
+
   test('modelo fora da tabela e ausente', () => {
     expect(tierFromChoice('fable', 'high', DEFAULT_CONFIG)).toBe('fora')
     expect(tierFromChoice(undefined, 'high', DEFAULT_CONFIG)).toBe(null)

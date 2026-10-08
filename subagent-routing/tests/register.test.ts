@@ -85,10 +85,46 @@ describe('tool.call de Agent', () => {
     mock.store(on)
     const seen = captureAgent(on)
     const toasts = captureToasts(on)
-    await $.tool.call(agent({ subagent_type: 'Explore', model: 'opus', description: undefined }))
+    await $.tool.call(agent({ subagent_type: 42, model: 'opus' }))
     expect(seen[0]?.model).toBe('opus')
     expect(seen[0]?.effort).toBe(undefined)
     expect(toasts).toContain('subagent-routing: erro, seguiu sem roteamento')
+  })
+
+  test('falha ao montar o aviso não desfaz o roteamento nem conta estatística', async ($, on) => {
+    mock.store(on)
+    const seen = captureAgent(on)
+    await $.tool.call(agent({ subagent_type: 'Explore', model: 'opus', description: undefined }))
+    expect(seen[0]).toMatchObject({ model: 'opus', effort: 'high' })
+    const out = await $.command.run(routeCommand('stats'))
+    expect(out.text).toContain(`${'pesado'.padEnd(16)}${'0'.padStart(8)}${'0'.padStart(8)}`)
+  })
+
+  test('classificador pede resposta curta', async ($, on) => {
+    mock.store(on)
+    let asked: Record<string, unknown> = {}
+    on('model.complete', ($, e) => {
+      asked = e as unknown as Record<string, unknown>
+      return { value: { isAnswered: true as const, text: 'leve', usage: USAGE } }
+    })
+    captureAgent(on)
+    await $.tool.call(agent({}))
+    expect(asked).toMatchObject({ model: 'haiku', effort: 'low', maxTokens: 256 })
+  })
+
+  test('delegações em paralelo: cada uma roteada e todas contadas', async ($, on) => {
+    mock.store(on)
+    const seen = captureAgent(on)
+    await Promise.all([
+      $.tool.call(agent({ tool_use_id: 'p1', subagent_type: 'Explore', model: 'haiku' })),
+      $.tool.call(agent({ tool_use_id: 'p2', subagent_type: 'Explore', model: 'haiku' })),
+      $.tool.call(agent({ tool_use_id: 'p3', model: 'sonnet', prompt: 'corrigir o deadlock no worker' })),
+    ])
+    const byId = Object.fromEntries(seen.map(e => [e.tool_use_id, e.model]))
+    expect(byId).toEqual({ p1: 'haiku', p2: 'haiku', p3: 'opus' })
+    const out = await $.command.run(routeCommand('stats'))
+    expect(out.text).toContain(`${'leve'.padEnd(16)}${'2'.padStart(8)}${'2'.padStart(8)}`)
+    expect(out.text).toContain(`${'pesado'.padEnd(16)}${'1'.padStart(8)}${'1'.padStart(8)}`)
   })
 
   test('estatísticas acumuladas vão para o store', async ($, on) => {

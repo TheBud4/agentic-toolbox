@@ -43,6 +43,9 @@ export const DEFAULT_CONFIG: RouteConfig = {
   classifier: { enabled: true, timeoutMs: 4000, fallback: 'medio' },
 }
 
+/** O maior atraso que um timer aceita; `$.model.complete` recusa `timeoutMs` acima disso. */
+const MAX_TIMER_MS = 2147483647
+
 export function normalize(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
@@ -51,11 +54,11 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** `term` aparece em `text` como palavra (ou expressão) inteira, sem acento nem caixa. */
+/** `term` aparece em `text` como palavra (ou expressão) inteira, sem acento nem caixa; `_` une palavras (update_user). */
 export function containsTerm(text: string, term: string): boolean {
   const wanted = normalize(term).trim()
   if (wanted === '') return false
-  return new RegExp(`(^|[^a-z0-9])${escapeRegExp(wanted)}([^a-z0-9]|$)`).test(normalize(text))
+  return new RegExp(`(^|[^a-z0-9_])${escapeRegExp(wanted)}([^a-z0-9_]|$)`).test(normalize(text))
 }
 
 export function parseTier(word: string): RouteTier | null {
@@ -121,7 +124,9 @@ export function mergeConfig(raw: unknown): { config: RouteConfig; isRepaired: bo
     const { enabled, timeoutMs, fallback } = saved.classifier as Record<string, unknown>
     if (typeof enabled === 'boolean') config.classifier.enabled = enabled
     else if (enabled !== undefined) isRepaired = true
-    if (typeof timeoutMs === 'number' && timeoutMs > 0) config.classifier.timeoutMs = timeoutMs
+    if (typeof timeoutMs === 'number' && Number.isInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= MAX_TIMER_MS) {
+      config.classifier.timeoutMs = timeoutMs
+    }
     else if (timeoutMs !== undefined) isRepaired = true
     if (fallback === 'leve' || fallback === 'medio' || fallback === 'pesado') config.classifier.fallback = fallback
     else if (fallback !== undefined) isRepaired = true
@@ -161,15 +166,15 @@ export function isForced(mode: RouteMode): mode is { force: RouteTier } {
   return typeof mode === 'object' && mode !== null
 }
 
-/** Nível que o Sonnet pediu: alvo exato configurado, depois família do modelo. */
+/** Nível que o Sonnet pediu: alvo exato configurado, depois família do modelo; só effort max/xhigh, sem model, é maximo. */
 export function tierFromChoice(
   model: string | undefined,
   effort: string | undefined,
   config: RouteConfig,
 ): RouteTier | 'fora' | null {
-  if (model === undefined || model.trim() === '') return null
-  const m = normalize(model).trim()
   const e = effort === undefined ? undefined : normalize(effort).trim()
+  if (model === undefined || model.trim() === '') return e === 'max' || e === 'xhigh' ? 'maximo' : null
+  const m = normalize(model).trim()
 
   const exact = HIGHEST_FIRST.find(tier => config.tiers[tier].model === m && config.tiers[tier].effort === e)
   if (exact !== undefined) return exact
