@@ -1,0 +1,5 @@
+{
+  "name": "claude-mods",
+  "owner": { "name": "TheBud4" },
+  "plugins": [{ "name": "subagent-routing", "source": "./subagent-routing" }]
+}
