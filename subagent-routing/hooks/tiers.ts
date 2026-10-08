@@ -1,4 +1,4 @@
-import type { RouteEffort, RouteModel, RouteTarget, RouteTier } from '../types'
+import type { RouteEffort, RouteMode, RouteModel, RouteSource, RouteTarget, RouteTier } from '../types'
 
 export type ClassTier = Exclude<RouteTier, 'maximo'>
 
@@ -130,4 +130,137 @@ export function mergeConfig(raw: unknown): { config: RouteConfig; isRepaired: bo
   }
 
   return { config, isRepaired }
+}
+
+export type DecideInput = {
+  subagentType: string | undefined
+  description: string
+  prompt: string
+  model: string | undefined
+  effort: string | undefined
+  turnTag: RouteTier | null
+  mode: RouteMode
+}
+
+export type RouteDecision =
+  | { kind: 'fork' }
+  | { kind: 'fora'; model: string }
+  | {
+      kind: 'route'
+      tier: RouteTier
+      target: RouteTarget
+      source: RouteSource
+      reasons: string[]
+      isLimited: boolean
+    }
+
+const RANK: Record<RouteTier, number> = { leve: 0, medio: 1, pesado: 2, maximo: 3 }
+const HIGHEST_FIRST: readonly RouteTier[] = ['maximo', 'pesado', 'medio', 'leve']
+
+export function isForced(mode: RouteMode): mode is { force: RouteTier } {
+  return typeof mode === 'object' && mode !== null
+}
+
+/** Nível que o Sonnet pediu: alvo exato configurado, depois família do modelo. */
+export function tierFromChoice(
+  model: string | undefined,
+  effort: string | undefined,
+  config: RouteConfig,
+): RouteTier | 'fora' | null {
+  if (model === undefined || model.trim() === '') return null
+  const m = normalize(model).trim()
+  const e = effort === undefined ? undefined : normalize(effort).trim()
+
+  const exact = HIGHEST_FIRST.find(tier => config.tiers[tier].model === m && config.tiers[tier].effort === e)
+  if (exact !== undefined) return exact
+  if (m.includes('haiku')) return 'leve'
+  if (m.includes('sonnet')) return 'medio'
+  if (m.includes('opus')) return e === 'max' || e === 'xhigh' ? 'maximo' : 'pesado'
+  return HIGHEST_FIRST.find(tier => config.tiers[tier].model === m) ?? 'fora'
+}
+
+export function shiftTier(tier: RouteTier, mode: 'eco' | 'boost'): RouteTier {
+  if (mode === 'eco') {
+    if (tier === 'maximo') return 'pesado'
+    if (tier === 'pesado') return 'medio'
+    return 'leve'
+  }
+  if (tier === 'leve') return 'medio'
+  if (tier === 'medio') return 'pesado'
+  return tier
+}
+
+export function editsFiles(subagentType: string | undefined, text: string, config: RouteConfig): boolean {
+  const type = normalize(subagentType ?? 'general-purpose')
+  if (config.readOnlyAgents.some(agent => normalize(agent) === type)) return false
+  return config.writeVerbs.some(verb => containsTerm(text, verb))
+}
+
+export function findHeavyKeyword(text: string, config: RouteConfig): string | null {
+  return config.heavyKeywords.find(word => containsTerm(text, word)) ?? null
+}
+
+export function needsClassifier(input: DecideInput, config: RouteConfig): boolean {
+  return (
+    config.classifier.enabled &&
+    input.subagentType !== 'fork' &&
+    input.turnTag === null &&
+    !isForced(input.mode) &&
+    tierFromChoice(input.model, input.effort, config) === null
+  )
+}
+
+export function decide(input: DecideInput, classified: ClassTier | null, config: RouteConfig): RouteDecision {
+  if (input.subagentType === 'fork') return { kind: 'fork' }
+
+  const route = (tier: RouteTier, source: RouteSource, reasons: string[], isLimited = false): RouteDecision => ({
+    kind: 'route', tier, target: { ...config.tiers[tier] }, source, reasons, isLimited,
+  })
+
+  if (input.turnTag !== null) return route(input.turnTag, 'tag', [`tag #${input.turnTag}`])
+  if (isForced(input.mode)) return route(input.mode.force, 'force', [`force ${input.mode.force}`])
+
+  const choice = tierFromChoice(input.model, input.effort, config)
+  if (choice === 'fora') return { kind: 'fora', model: input.model ?? '' }
+
+  let tier: RouteTier
+  let source: RouteSource
+  const reasons: string[] = []
+  if (choice !== null) {
+    tier = choice
+    source = 'sonnet'
+    reasons.push('sonnet')
+  } else if (classified !== null) {
+    tier = classified
+    source = 'classificador'
+    reasons.push('classificador')
+  } else {
+    tier = config.classifier.fallback
+    source = 'reserva'
+    reasons.push(config.classifier.enabled ? 'classificador falhou' : 'classificador desligado')
+  }
+
+  if (input.mode === 'eco' || input.mode === 'boost') {
+    const shifted = shiftTier(tier, input.mode)
+    if (shifted !== tier) {
+      tier = shifted
+      reasons.push(input.mode)
+    }
+  }
+
+  const text = `${input.description}\n${input.prompt}`
+  let isLimited = false
+  if (RANK[tier] < RANK.medio && editsFiles(input.subagentType, text, config)) {
+    tier = 'medio'
+    reasons.push('limite: edita arquivos')
+    isLimited = true
+  }
+  const keyword = RANK[tier] < RANK.pesado ? findHeavyKeyword(text, config) : null
+  if (keyword !== null) {
+    tier = 'pesado'
+    reasons.push(`limite: "${keyword}"`)
+    isLimited = true
+  }
+
+  return route(tier, source, reasons, isLimited)
 }
