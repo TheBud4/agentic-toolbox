@@ -59,8 +59,13 @@ test('warns from 70%', async () => {
   ])
 })
 
-test('compact band: git, model and warning on top; ctx and windows below; no round, no cost', async ($, on) => {
+test('one-line band: meters left, git and model right; warnings only as toasts', async ($, on) => {
   mock.clock(on, { now: NOW })
+  const toasts: string[] = []
+  on('ui.toast', async (_$, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
   on('prompt.submit', async (_$, e) => ({ text: e.text }))
   on('session.measure', async (_$, e) => ({ changed: e.changed }))
   on('turn.step', async function* (_$, e) {
@@ -107,9 +112,18 @@ test('compact band: git, model and warning on top; ctx and windows below; no rou
     expect(await ui.find({ type: 'Text', text: /^↻ 2h00$/ }), `${surface}: /^↻ 2h00$/`).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^sem$/ }), `${surface}: /^sem$/`).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^78%$/ }), `${surface}: /^78%$/`).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /passou do pico, considere \/compact/ }), `${surface}: /passou do pico, considere \\/compact/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /passou do pico|⚠/ }), `${surface}: aviso fora da faixa`).toBeUndefined()
+    // Uma linha: medidores à esquerda e git + modelo encostados à direita.
+    const band = await ui.find({ key: 'band' })
+    expect(band?.props.justifyContent, `${surface}: justify`).toBe('space-between')
+    expect(band?.props.flexDirection ?? 'row', `${surface}: direção`).toBe('row')
+    expect((await ui.find({ key: 'meters' }))?.text, `${surface}: medidores`).toContain('ctx')
+    const right = await ui.find({ key: 'right' })
+    expect(right?.text, `${surface}: modelo à direita`).toContain('Opus 5.5')
+    expect(right?.text, `${surface}: nada de medidor à direita`).not.toContain('ctx')
     expect(await ui.find({ type: 'Text', text: /rodada|tokens|livre|zera em/ }), `${surface}: /rodada|tokens|livre|zera em/`).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /\$/ }), `${surface}: /\\$/`).toBeUndefined()
     await ui.unmount()
   }
+  expect(toasts).toContain('⚠ contexto 75%: passou do pico, considere /compact')
 })

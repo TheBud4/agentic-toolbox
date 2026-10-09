@@ -204,12 +204,9 @@ export const register: Register = on => {
     // Ler `now` inscreve o desenho no relógio de 30 s; a hora em si vem do $.clock.
     await read($, now)
     const t = await $.clock.now()
-    const warnings = warningsOf(m, t)
     const limits = m?.limits ?? []
-    const hasContext = m !== null && m.contextPercent !== null
-    const hasTop = g !== null || mi !== null || warnings.length > 0
-    const hasBottom = hasContext || limits.length > 0
-    if (!hasTop && !hasBottom) return next(e)
+    const hasMeters = (m !== null && m.contextPercent !== null) || limits.length > 0
+    if (!hasMeters && g === null && mi === null) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
     const barWidth = e.props.bodyColumns >= 110 ? 10 : 6
@@ -224,7 +221,7 @@ export const register: Register = on => {
       )
     }
 
-    // Linha de cima: onde estou (git) e com quem (modelo) à esquerda, avisos à direita.
+    // Os avisos de 70% não entram na faixa: vão como toast (session.measure) e a cor do medidor já sinaliza.
     const gitSeg = g && (
       <Box key="git" columnGap={1}>
         <Text color="magenta">⎇ {g.branch}</Text>
@@ -244,17 +241,7 @@ export const register: Register = on => {
       </Box>
     )
 
-    const top = hasTop && (
-      <Box key="top" justifyContent="space-between" columnGap={3} flexWrap="wrap">
-        <Box columnGap={3} flexWrap="wrap">
-          {gitSeg || null}
-          {modelSeg || null}
-        </Box>
-        {warnings.length > 0 ? <Text color="yellow">⚠ {warnings.map(w => w.text).join(' · ')}</Text> : null}
-      </Box>
-    )
-
-    // Linha de baixo: contexto e janelas de uso, como bateria (barra cheia = sobra).
+    // Medidores: contexto e janelas de uso, como bateria (barra cheia = sobra).
     const ctxSeg = m && m.contextPercent !== null && (
       <Box key="ctx" columnGap={1}>
         <Text dimColor>ctx</Text>
@@ -283,17 +270,17 @@ export const register: Register = on => {
       )
     })
 
-    const bottom = hasBottom && (
-      <Box key="bottom" columnGap={3} flexWrap="wrap">
-        {ctxSeg || null}
-        {limitSegs}
-      </Box>
-    )
-
+    // Uma linha só: medidores à esquerda, git e modelo encostados à direita.
     return (
-      <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
-        {top || null}
-        {bottom || null}
+      <Box key="band" justifyContent="space-between" columnGap={3} flexWrap="wrap" paddingLeft={1} paddingRight={1}>
+        <Box key="meters" columnGap={3} flexWrap="wrap">
+          {ctxSeg || null}
+          {limitSegs}
+        </Box>
+        <Box key="right" columnGap={3}>
+          {gitSeg || null}
+          {modelSeg || null}
+        </Box>
       </Box>
     )
   })
