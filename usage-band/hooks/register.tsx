@@ -1,9 +1,8 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, ModelUsage, Register, RenderChildren, SessionMeasureInput, SessionUsage } from 'claude-code'
+import type { EngineInterface, Register, SessionMeasureInput, SessionUsage } from 'claude-code'
 
 import type { Git, Limit, Meter } from '../types'
 
-const round = atom({ plugin: 'usage-band', key: 'round' } as const, null)
 const meter = atom({ plugin: 'usage-band', key: 'meter' } as const, null)
 const now = atom({ plugin: 'usage-band', key: 'now' } as const, 0)
 const git = atom({ plugin: 'usage-band', key: 'git' } as const, null)
@@ -11,18 +10,11 @@ const model = atom({ plugin: 'usage-band', key: 'model' } as const, null)
 
 const HOUR = 3_600_000
 const WINDOW_MS: Record<string, number> = { five_hour: 5 * HOUR, seven_day: 7 * 24 * HOUR }
-const LABEL: Record<string, string> = { five_hour: '5h', seven_day: 'semana', spend_limit: 'gasto' }
-const WINDOW_NAME: Record<string, string> = { five_hour: 'janela de 5h', seven_day: 'janela semanal' }
+const LABEL: Record<string, string> = { five_hour: '5h', seven_day: 'sem', spend_limit: 'gasto' }
+const WINDOW_NAME: Record<string, string> = { five_hour: '5h', seven_day: 'semana', spend_limit: 'gasto' }
 
 /** A partir daqui o contexto passou do pico de inteligência e as janelas pedem atenção. */
 export const WARN_AT = 70
-
-export const fmtTokens = (n: number): string => {
-  if (n < 1000) return String(n)
-  if (n < 10_000) return `${(n / 1000).toFixed(1)}k`
-  if (n < 1_000_000) return `${Math.round(n / 1000)}k`
-  return `${parseFloat((n / 1_000_000).toFixed(2))}M`
-}
 
 export const fmtDuration = (ms: number): string => {
   const s = Math.max(0, Math.round(ms / 1000))
@@ -71,9 +63,6 @@ export const parseGitStatus = (out: string): Git | null => {
 
 const levelColor = (pct: number): string => (pct >= 85 ? 'red' : pct >= WARN_AT ? 'yellow' : 'green')
 
-const totalOf = (u: ModelUsage): number =>
-  u.input_tokens + u.output_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
-
 const toMeter = (u: SessionUsage | SessionMeasureInput): Meter => ({
   limits: u.rateLimits.map(l => ({ kind: l.kind, percentUsed: l.percentUsed, resetsAt: l.resetsAt })),
   contextPercent: u.context.percent ?? null,
@@ -104,7 +93,7 @@ export const warningsOf = (m: Meter | null, at: number): Warning[] => {
   if (m.contextPercent !== null && m.contextPercent >= WARN_AT) {
     out.push({
       id: 'context',
-      text: `contexto em ${m.contextPercent}%, passou do pico de inteligência; considere /compact`,
+      text: `contexto ${m.contextPercent}%: passou do pico, considere /compact`,
     })
   }
   for (const l of m.limits) {
@@ -112,18 +101,18 @@ export const warningsOf = (m: Meter | null, at: number): Warning[] => {
     const forecast = forecastOf(l, at)
     const tail =
       forecast !== null
-        ? `acaba em ~${fmtDuration(forecast)}, antes de zerar`
+        ? `acaba em ~${fmtDuration(forecast)}`
         : l.resetsAt
           ? `zera em ${fmtDuration(Date.parse(l.resetsAt) - at)}`
           : ''
     const name = WINDOW_NAME[l.kind] ?? l.kind
-    out.push({ id: l.kind, text: `${name} em ${Math.round(l.percentUsed)}%${tail ? `; ${tail}` : ''}` })
+    out.push({ id: l.kind, text: `${name} ${Math.round(l.percentUsed)}%${tail ? `: ${tail}` : ''}` })
   }
   return out
 }
 
 // Estado do módulo: some num reload, o que só reinicia temporizadores e avisos.
-const ticker = { isWorking: false, lastTick: 0, lastGit: 0 }
+const ticker = { lastTick: 0, lastGit: 0 }
 const warned = new Set<string>()
 
 async function refreshGit($: EngineInterface): Promise<void> {
@@ -141,7 +130,8 @@ async function refreshGit($: EngineInterface): Promise<void> {
 
 async function tick($: EngineInterface): Promise<void> {
   const t = await $.clock.now()
-  if (ticker.isWorking || t - ticker.lastTick >= 30_000) {
+  // A cada 30 s basta: o relógio só alimenta "↻2h00" e a previsão das janelas.
+  if (t - ticker.lastTick >= 30_000) {
     ticker.lastTick = t
     await update($, now, () => t)
   }
@@ -184,78 +174,45 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('prompt.submit', async ($, e, next) => {
-    const t = await $.clock.now()
-    ticker.isWorking = true
-    await update($, round, () => ({
-      startedAt: t,
-      endedAt: null,
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheWrite: 0,
-      requests: 0,
-      tools: 0,
-      subagentTokens: 0,
-    }))
-    return next(e)
-  })
-
+  // Só para saber o modelo e o effort do loop principal.
   on('turn.step', async function* ($, e, next) {
     if (!e.agentId) {
       const info = { id: e.model, effort: e.effort === undefined ? null : String(e.effort) }
       await update($, model, () => info)
     }
-    const result = yield* next(e)
-    const usage = result.usage
-    if (usage) {
-      await update($, round, r => {
-        if (!r) return r
-        if (e.agentId) return { ...r, subagentTokens: r.subagentTokens + totalOf(usage) }
-        return {
-          ...r,
-          input: r.input + usage.input_tokens,
-          output: r.output + usage.output_tokens,
-          cacheRead: r.cacheRead + usage.cache_read_input_tokens,
-          cacheWrite: r.cacheWrite + usage.cache_creation_input_tokens,
-          requests: r.requests + 1,
-        }
-      })
-    }
-    return result
+    return yield* next(e)
   })
 
+  // Ferramentas que mexem em arquivos mudam o git.
   on('tool.call', async ($, e, next) => {
-    if (e.agentId) return next(e)
-    await update($, round, r => (r ? { ...r, tools: r.tools + 1 } : r))
     const result = await next(e)
-    if (e.tool === 'Bash' || e.tool === 'Edit' || e.tool === 'Write') await refreshGit($)
+    if (!e.agentId && (e.tool === 'Bash' || e.tool === 'Edit' || e.tool === 'Write')) await refreshGit($)
     return result
   })
 
   on('turn.complete', async ($, e, next) => {
-    if (!e.agentId) {
-      ticker.isWorking = false
-      const t = await $.clock.now()
-      await update($, round, r => (r ? { ...r, endedAt: t } : r))
-      await refreshGit($)
-    }
+    if (!e.agentId) await refreshGit($)
     return next(e)
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
 
-    const r = await read($, round)
     const m = await read($, meter)
     const g = await read($, git)
     const mi = await read($, model)
-    const t = Math.max(await read($, now), r?.startedAt ?? 0)
-    if (!r && !m && !g && !mi) return next(e)
+    // Ler `now` inscreve o desenho no relógio de 30 s; a hora em si vem do $.clock.
+    await read($, now)
+    const t = await $.clock.now()
+    const warnings = warningsOf(m, t)
+    const limits = m?.limits ?? []
+    const hasContext = m !== null && m.contextPercent !== null
+    const hasTop = g !== null || mi !== null || warnings.length > 0
+    const hasBottom = hasContext || limits.length > 0
+    if (!hasTop && !hasBottom) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
-    const isWide = e.props.bodyColumns >= 110
-    const barWidth = isWide ? 10 : 6
+    const barWidth = e.props.bodyColumns >= 110 ? 10 : 6
 
     const meterBar = (pct: number, color: string) => {
       const filled = Math.min(barWidth, Math.max(0, Math.round((pct / 100) * barWidth)))
@@ -267,7 +224,7 @@ export const register: Register = on => {
       )
     }
 
-    // Linha 1: onde estou (git), com quem (modelo) e quanto de contexto.
+    // Linha de cima: onde estou (git) e com quem (modelo) à esquerda, avisos à direita.
     const gitSeg = g && (
       <Box key="git" columnGap={1}>
         <Text color="magenta">⎇ {g.branch}</Text>
@@ -287,45 +244,28 @@ export const register: Register = on => {
       </Box>
     )
 
+    const top = hasTop && (
+      <Box key="top" justifyContent="space-between" columnGap={3} flexWrap="wrap">
+        <Box columnGap={3} flexWrap="wrap">
+          {gitSeg || null}
+          {modelSeg || null}
+        </Box>
+        {warnings.length > 0 ? <Text color="yellow">⚠ {warnings.map(w => w.text).join(' · ')}</Text> : null}
+      </Box>
+    )
+
+    // Linha de baixo: contexto e janelas de uso, como bateria (barra cheia = sobra).
     const ctxSeg = m && m.contextPercent !== null && (
       <Box key="ctx" columnGap={1}>
-        <Text dimColor>contexto</Text>
+        <Text dimColor>ctx</Text>
         {meterBar(m.contextPercent, levelColor(m.contextPercent))}
         <Text color={levelColor(m.contextPercent)} bold>
           {m.contextPercent}%
         </Text>
-        {isWide && m.contextTokens !== null ? (
-          <Text dimColor>
-            {fmtTokens(m.contextTokens)}/{fmtTokens(m.contextWindow)}
-          </Text>
-        ) : null}
       </Box>
     )
 
-    // Linha 2: a rodada atual (ou a última).
-    const isLive = r !== null && r.endedAt === null
-    const roundRow = r && (
-      <Box key="round" columnGap={3} flexWrap="wrap">
-        <Box columnGap={1}>
-          <Text color={isLive ? 'cyan' : undefined} dimColor={!isLive}>
-            {isLive ? '● rodada' : '○ última rodada'}
-          </Text>
-          <Text bold>{fmtTokens(r.input + r.output + r.cacheRead + r.cacheWrite)}</Text>
-          <Text dimColor>tokens</Text>
-          <Text dimColor>
-            ↑{fmtTokens(r.input + r.cacheWrite)} ↓{fmtTokens(r.output)}
-            {isWide ? ` ↻${fmtTokens(r.cacheRead)} cache` : ''}
-          </Text>
-        </Box>
-        <Text dimColor>
-          {r.requests} req · {r.tools} tools · {fmtDuration((r.endedAt ?? t) - r.startedAt)}
-        </Text>
-        {r.subagentTokens > 0 ? <Text color="magenta">subagentes {fmtTokens(r.subagentTokens)}</Text> : null}
-      </Box>
-    )
-
-    // Linha 3: janelas de uso, como bateria (barra cheia = sobra).
-    const limitSegs = (m?.limits ?? []).map(l => {
+    const limitSegs = limits.map(l => {
       const left = Math.max(0, 100 - l.percentUsed)
       const color = levelColor(l.percentUsed)
       const forecast = forecastOf(l, t)
@@ -336,44 +276,23 @@ export const register: Register = on => {
           <Text color={color} bold>
             {Math.round(left)}%
           </Text>
-          <Text dimColor>livre</Text>
-          {l.resetsAt ? <Text dimColor>· zera em {fmtDuration(Date.parse(l.resetsAt) - t)}</Text> : null}
-          {forecast !== null ? <Text color="yellow">· acaba em ~{fmtDuration(forecast)}</Text> : null}
+          {l.resetsAt ? <Text dimColor>↻{fmtDuration(Date.parse(l.resetsAt) - t)}</Text> : null}
+          {forecast !== null ? <Text color="yellow">acaba ~{fmtDuration(forecast)}</Text> : null}
         </Box>
       )
     })
 
-    const warnings = warningsOf(m, t)
-
-    // Duas colunas: à esquerda a rodada e as janelas, à direita modelo/contexto e git.
-    const row = (key: string, left: RenderChildren, right: RenderChildren) => (
-      <Box key={key} justifyContent="space-between" columnGap={3} flexWrap="wrap">
-        {left}
-        {right ? (
-          <Box columnGap={3} flexWrap="wrap">
-            {right}
-          </Box>
-        ) : null}
+    const bottom = hasBottom && (
+      <Box key="bottom" columnGap={3} flexWrap="wrap">
+        {ctxSeg || null}
+        {limitSegs}
       </Box>
     )
 
-    const rightTop = modelSeg || ctxSeg ? [modelSeg || null, ctxSeg || null] : null
-    const leftTop = roundRow || <Text dimColor>○ nenhuma rodada ainda</Text>
-    const leftBottom = limitSegs.length > 0 ? (
-      <Box columnGap={3} flexWrap="wrap">
-        {limitSegs}
-      </Box>
-    ) : null
-
     return (
       <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
-        {row('top', leftTop, rightTop)}
-        {leftBottom || gitSeg ? row('bottom', leftBottom ?? <Text> </Text>, gitSeg || null) : null}
-        {warnings.map(w => (
-          <Text key={`warn-${w.id}`} color="yellow">
-            ⚠ {w.text}
-          </Text>
-        ))}
+        {top || null}
+        {bottom || null}
       </Box>
     )
   })

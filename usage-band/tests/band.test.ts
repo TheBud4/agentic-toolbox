@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { fmtDuration, fmtTokens, forecastOf, parseGitStatus, prettyModel, warningsOf } from '../hooks/register'
+import { fmtDuration, forecastOf, parseGitStatus, prettyModel, warningsOf } from '../hooks/register'
 
 const NOW = Date.parse('2026-10-03T12:00:00Z')
 const HOUR = 3_600_000
@@ -17,12 +17,7 @@ const BAND = {
   },
 } as const
 
-test('formats tokens, durations and model names', async () => {
-  expect(fmtTokens(950)).toBe('950')
-  expect(fmtTokens(1234)).toBe('1.2k')
-  expect(fmtTokens(45_600)).toBe('46k')
-  expect(fmtTokens(2_500_000)).toBe('2.5M')
-  expect(fmtTokens(1_000_000)).toBe('1M')
+test('formats durations and model names', async () => {
   expect(fmtDuration(42_000)).toBe('42s')
   expect(fmtDuration(125_000)).toBe('2m05s')
   expect(fmtDuration(3 * HOUR + 7 * 60_000)).toBe('3h07')
@@ -52,14 +47,19 @@ test('warns from 70%', async () => {
   const m = { limits: [{ kind: 'five_hour', percentUsed: 69 }], contextPercent: 72, contextTokens: 1, contextWindow: 2 }
   const ws = warningsOf(m, NOW)
   expect(ws.map(w => w.id)).toEqual(['context'])
-  expect(ws[0]?.text).toContain('pico de inteligência')
+  expect(ws[0]?.text).toBe('contexto 72%: passou do pico, considere /compact')
+  expect(warningsOf({ ...m, limits: [{ kind: 'five_hour', percentUsed: 74 }] }, NOW)[1]?.text).toBe('5h 74%')
+  const resetsAt = new Date(NOW + 4 * HOUR).toISOString()
+  expect(warningsOf({ ...m, limits: [{ kind: 'seven_day', percentUsed: 71, resetsAt }] }, NOW)[1]?.text).toBe(
+    'semana 71%: zera em 4h00',
+  )
   expect(warningsOf({ ...m, limits: [{ kind: 'five_hour', percentUsed: 74 }] }, NOW).map(w => w.id)).toEqual([
     'context',
     'five_hour',
   ])
 })
 
-test('band shows git, model, round and limits, without cost', async ($, on) => {
+test('compact band: git, model and warning on top; ctx and windows below; no round, no cost', async ($, on) => {
   mock.clock(on, { now: NOW })
   on('prompt.submit', async (_$, e) => ({ text: e.text }))
   on('session.measure', async (_$, e) => ({ changed: e.changed }))
@@ -98,14 +98,18 @@ test('band shows git, model, round and limits, without cost', async ($, on) => {
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'usage-band', surface, ...BAND })
-    expect(await ui.find({ type: 'Text', text: /Opus 5\.5/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^high$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^13k$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^63%$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^78%$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /zera em 2h00/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /pico de inteligência/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /\$/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /Opus 5\.5/ }), `${surface}: /Opus 5\\.5/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^high$/ }), `${surface}: /^high$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^ctx$/ }), `${surface}: /^ctx$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^75%$/ }), `${surface}: /^75%$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^5h$/ }), `${surface}: /^5h$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^63%$/ }), `${surface}: /^63%$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^↻2h00$/ }), `${surface}: /^↻2h00$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^sem$/ }), `${surface}: /^sem$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^78%$/ }), `${surface}: /^78%$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /passou do pico, considere \/compact/ }), `${surface}: /passou do pico, considere \\/compact/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /rodada|tokens|livre|zera em/ }), `${surface}: /rodada|tokens|livre|zera em/`).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /\$/ }), `${surface}: /\\$/`).toBeUndefined()
     await ui.unmount()
   }
 })

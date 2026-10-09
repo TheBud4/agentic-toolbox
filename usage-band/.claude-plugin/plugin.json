@@ -1,6 +1,6 @@
 {
   "name": "usage-band",
   "version": "0.1.0",
-  "description": "Faixa acima do prompt com tokens da rodada, janelas de 5h/semanal, contexto e custo",
+  "description": "Faixa compacta acima do prompt: git, modelo e avisos em cima; contexto e janelas de 5h/semanal embaixo",
   "types": "./types/index.d.ts"
 }
