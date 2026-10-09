@@ -104,7 +104,7 @@ test('compact band: git, model and warning on top; ctx and windows below; no rou
     expect(await ui.find({ type: 'Text', text: /^75%$/ }), `${surface}: /^75%$/`).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^5h$/ }), `${surface}: /^5h$/`).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^63%$/ }), `${surface}: /^63%$/`).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^↻2h00$/ }), `${surface}: /^↻2h00$/`).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^↻ 2h00$/ }), `${surface}: /^↻ 2h00$/`).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^sem$/ }), `${surface}: /^sem$/`).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^78%$/ }), `${surface}: /^78%$/`).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /passou do pico, considere \/compact/ }), `${surface}: /passou do pico, considere \\/compact/`).toBeDefined()

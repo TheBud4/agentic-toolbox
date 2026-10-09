@@ -276,7 +276,8 @@ export const register: Register = on => {
           <Text color={color} bold>
             {Math.round(left)}%
           </Text>
-          {l.resetsAt ? <Text dimColor>↻{fmtDuration(Date.parse(l.resetsAt) - t)}</Text> : null}
+          {/* O ↻ é desenhado mais largo que a célula em várias fontes: o espaço depois dele evita que cubra o dígito. */}
+          {l.resetsAt ? <Text dimColor>↻ {fmtDuration(Date.parse(l.resetsAt) - t)}</Text> : null}
           {forecast !== null ? <Text color="yellow">acaba ~{fmtDuration(forecast)}</Text> : null}
         </Box>
       )
