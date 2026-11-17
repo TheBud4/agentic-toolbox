@@ -1,0 +1,14 @@
+# Ferramentas de IA / workspace temporário
+.superpowers/
+**/.claude-plugin/types/
+
+# Python / Node / Sistema
+__pycache__/
+*.py[cod]
+node_modules/
+.DS_Store
+
+# Segredos e variáveis locais
+.env
+.env.*
+!.env.example
