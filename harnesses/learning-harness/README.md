@@ -142,7 +142,7 @@ Edite o perfil com o que você domina, o que está aprendendo e como prefere apr
    Depois, passe o que for útil para os arquivos novos: fontes e decisões para o `memory.md`, marcos e progresso para o `plan.md`, onde você parou para o `state.json` e o `session.md`, e regras específicas do projeto para o `.agents/rules/projeto.md`.
 2. **Copie o template** (o `-n` não sobrescreve nada que já exista):
    ```bash
-   cp -an ~/www/learning-harness/template/. ~/caminho/do/projeto/
+   cp -an ~/www/agentic-toolbox/harnesses/learning-harness/template/. ~/caminho/do/projeto/
    ```
 3. **Tire os arquivos de IA do Git** sem mexer no `.gitignore` do projeto:
    ```bash

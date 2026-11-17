@@ -1,13 +1,31 @@
 # Agentic Toolbox
 
-Repositório pessoal para reunir harnesses, agentes, skills, mods e outras ferramentas criadas para trabalhar com IA.
+Repositório pessoal para reunir harnesses, plugins, skills, agentes e outras ferramentas criadas para trabalhar com IA.
 
-> ⚠️ **Em organização:** os projetos abaixo foram reunidos aqui inicialmente e a estrutura do repositório ainda está sendo definida.
+## Estrutura
 
-## Conteúdo atual
+```text
+agentic-toolbox/
+├── catalog.json          # Índice dos itens para consulta/instalação via CLI
+├── harnesses/            # Harnesses completos e templates de ambiente
+└── plugins/              # Plugins e mods para ferramentas específicas
+```
 
-- [`claude-mods/`](claude-mods/) — Mods (plugins de function hooks) para o Claude Code (`subagent-routing`, `usage-band`, `cassino`).
-- [`learning-harness/`](learning-harness/) — Harness de aprendizagem com IA para praticar programação (você escreve o código; o agente orienta com base em documentação oficial).
+Novas categorias (`skills/`, `agents/`, `prompts/`, etc.) entram na raiz conforme forem criadas, sempre no formato `<categoria>/<nome-em-kebab-case>/` com um `README.md` em português e registro no [`catalog.json`](catalog.json).
+
+## Itens disponíveis
+
+### Harnesses
+
+| Item | Descrição | Ferramentas |
+| :--- | :--- | :--- |
+| [learning-harness](harnesses/learning-harness/) | Harness de aprendizagem com IA para praticar programação, com ergonomia para TDAH. | Claude Code, Antigravity |
+
+### Plugins
+
+| Item | Descrição | Ferramentas |
+| :--- | :--- | :--- |
+| [claude-mods](plugins/claude-mods/) | Coleção de mods (function hooks): `subagent-routing`, `usage-band` e `cassino`. | Claude Code |
 
 ## Licença
 

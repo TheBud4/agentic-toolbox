@@ -11,7 +11,7 @@ Mods (plugins de function hooks) do Claude Code.
 ## Instalar
 
 ```
-claude plugin marketplace add ~/www/claude-mods
+claude plugin marketplace add ~/www/agentic-toolbox/plugins/claude-mods
 claude plugin install subagent-routing@claude-mods   # ou usage-band@claude-mods, cassino@claude-mods
 ```
 

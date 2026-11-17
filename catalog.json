@@ -1,0 +1,41 @@
+{
+  "versao": 1,
+  "itens": [
+    {
+      "id": "learning-harness",
+      "nome": "Learning Harness",
+      "tipo": "harness",
+      "caminho": "harnesses/learning-harness",
+      "template": "harnesses/learning-harness/template",
+      "ferramentas": ["claude-code", "antigravity"],
+      "instalacao": "copy-template",
+      "descricao": "Harness de aprendizagem com IA para praticar programação, com ergonomia para TDAH."
+    },
+    {
+      "id": "claude-mods",
+      "nome": "Claude Mods",
+      "tipo": "plugin-marketplace",
+      "caminho": "plugins/claude-mods",
+      "ferramentas": ["claude-code"],
+      "instalacao": "marketplace",
+      "descricao": "Coleção de mods (function hooks) para o Claude Code: subagent-routing, usage-band e cassino.",
+      "itens": [
+        {
+          "id": "subagent-routing",
+          "caminho": "plugins/claude-mods/subagent-routing",
+          "descricao": "Roteia cada subagente para um modelo/effort conforme a dificuldade."
+        },
+        {
+          "id": "usage-band",
+          "caminho": "plugins/claude-mods/usage-band",
+          "descricao": "Faixa de uma linha acima do prompt com medidores de contexto/uso, git e modelo."
+        },
+        {
+          "id": "cassino",
+          "caminho": "plugins/claude-mods/cassino",
+          "descricao": "Sons de roleta, jackpot e notificação para eventos do Claude Code."
+        }
+      ]
+    }
+  ]
+}

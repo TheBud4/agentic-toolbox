@@ -21,7 +21,7 @@ são roteados.
 ## Instalar
 
 ```
-claude plugin marketplace add ~/www/claude-mods
+claude plugin marketplace add ~/www/agentic-toolbox/plugins/claude-mods
 claude plugin install subagent-routing@claude-mods
 ```
 
