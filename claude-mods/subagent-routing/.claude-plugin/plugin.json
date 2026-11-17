@@ -1,0 +1,6 @@
+{
+  "name": "subagent-routing",
+  "version": "0.1.0",
+  "description": "Roteia cada subagente para um modelo/effort conforme a dificuldade e incentiva a delegação moderada",
+  "types": "./types/index.d.ts"
+}

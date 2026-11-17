@@ -1,0 +1,6 @@
+{
+  "name": "usage-band",
+  "version": "0.1.0",
+  "description": "Faixa de uma linha acima do prompt: contexto e janelas de 5h/semanal à esquerda, git e modelo à direita; avisos de 70% em toast",
+  "types": "./types/index.d.ts"
+}
