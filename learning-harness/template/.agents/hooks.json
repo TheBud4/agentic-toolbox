@@ -1,0 +1,17 @@
+{
+  "learning-harness-bloqueio": {
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          { "type": "command", "command": "./.harness/bin/guard.sh --antigravity", "timeout": 10 }
+        ]
+      }
+    ]
+  },
+  "learning-harness-recarga": {
+    "SessionStart": [
+      { "type": "command", "command": "./.harness/bin/carregar.sh --antigravity", "timeout": 10 }
+    ]
+  }
+}

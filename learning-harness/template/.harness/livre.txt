@@ -1,0 +1,8 @@
+# Caminhos fora do escopo de aprendizado: o agente pode escrever aqui.
+# Um glob por linha, relativo à raiz do projeto. O * também casa com /.
+# Descomente o que se aplicar:
+# CMakeLists.txt
+# Makefile
+# go.mod
+# go.sum
+# .github/*

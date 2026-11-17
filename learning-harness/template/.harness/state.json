@@ -1,0 +1,11 @@
+{
+  "marco": 1,
+  "tarefa": 1,
+  "passo": 1,
+  "passos_total": 1,
+  "titulo": "",
+  "arquivo": "",
+  "status": "em_andamento",
+  "verificacao": { "tipo": "test", "cmd": "", "criterio": "" },
+  "proximo": ""
+}
